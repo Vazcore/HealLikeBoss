@@ -91,7 +91,10 @@ function handlers.COMBAT_LOG_EVENT_UNFILTERED( self, event, ... )
   local spellId = select(12, CombatLogGetCurrentEventInfo())
 
   if (srcGUID == mmyGuid and subevent == "SPELL_CAST_SUCCESS") then
-    local spellName, _, spellIcon = GetSpellInfo(spellId);
+    local spellName, _, spellIcon = GetSpellInfo(spellId)
+    if Core.Settings_OnSpellSuccess then
+      Core.Settings_OnSpellSuccess(spellId, spellName, spellIcon)
+    end
     self.BG:SetTexture(spellIcon)
   end
 end
@@ -102,6 +105,7 @@ end
 
 
 function Core_RegisterMainEventHandlers(self)
+  Core.CoreFrame = self
   
   self:RegisterEvent("ADDON_LOADED");
   self:RegisterEvent("PLAYER_LOGOUT");

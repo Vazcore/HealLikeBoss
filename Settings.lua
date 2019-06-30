@@ -1,12 +1,79 @@
 local Core = nil
 local SettingsWindow = nil
 local activeTab = nil
+local lastSpell = nil
+
+local function createSpellModel( spId, spName, spIcon, cd, priority, group )
+  local model = {
+    spId = spId,
+    spName = spName,
+    spIcon=spIcon,
+    cd=cd,
+    priority = 0,
+    group=group
+  }
+  return model
+end
+
+local function renderSpellList()
+  print("here")
+  activeTab.spells = {}
+  for i,v in pairs(UserData.spells[activeTab.info.title]) do
+    print(i,v)
+  end
+end
+
+local function onAddSpell(self, ...)
+  local spellId, spellName, spellIcon  = unpack(lastSpell)
+  local start, duration = GetSpellCooldown(spellId)
+  local spellModel = createSpellModel(spellId, spellName, spellIcon, duration, 0, activeTab.info.title)
+
+  if (UserData.spells[activeTab.info.title] == nil) then
+    UserData.spells[activeTab.info.title] = {}
+  end
+
+  table.insert(UserData.spells[activeTab.info.title], spellModel)
+  renderSpellList()
+end
+
+local function Settings_OnSpellSuccess( spellId, spellName, spellIcon )
+  SettingsWindow.spellListFrames.spell1.spellIconFrame.texture:SetTexture(spellIcon)
+  lastSpell = {spellId, spellName, spellIcon}
+end
+
+local function createText( ... )
+  local parent, pos1, pos2, ox, oy, text = ...
+
+  local t = parent:CreateFontString(nil, "OVERLAY")
+  t:SetFontObject("GameFontHighlight")
+  t:SetPoint(pos1, parent, pos2, ox, oy)
+  t:SetText(text)
+  return t
+end
+
+local function initTabContent( tabButton )
+  local tab = tabButton.content
+
+  if UserData.spells[tabButton.info.title] == nil then
+    UserData.spells[tabButton.info.title] = {}
+  end
+  tab.init = true
+
+  tab.title = createText(tab, "LEFT", "TOPLEFT", 240, -8, (tabButton.info.title .. " Tab"))
+  tab.desc = createText(tab, "LEFT", "TOPLEFT", 240, -20, "Cast spell in order to add it")
+
+end
 
 local function setColorTextForButton( button, disable )
   if disable then
     button:Disable()
+    button.content:Show()
+    if (button.content.init ~= true) then
+      initTabContent(button)
+    end
   else
     button:Enable()
+    button.content:Hide()
   end
 end
 
@@ -21,7 +88,7 @@ end
 
 local function  Settings_CreateTabContent(parent)
   local tabContent = CreateFrame("Frame", nil, parent)
-  tabContent:SetPoint("CENTER", parent, "LEFT", 0, 0)
+  tabContent:SetPoint("LEFT", SettingsWindow, "LEFT", 0, 0)
   tabContent:SetSize(450, 300)
   return tabContent
 end
@@ -36,7 +103,6 @@ local function  Settings_CreateTabs(parent)
     parent["tab_button" .. n]:SetText(v.title)
     parent["tab_button" .. n].info = v
     parent["tab_button" .. n].content = Settings_CreateTabContent(parent["tab_button" .. n])
-    --parent["tab_button" .. n]:SetNormalFontObject("GameFontHighlight")
 
     -- register click on
     parent["tab_button" .. n]:RegisterForClicks("AnyUp")
@@ -57,7 +123,7 @@ local function CreateSettingsWindow(core)
   SettingsWindow:Hide()
 
   -- Title
-  SettingsWindow.title = SettingsWindow:CreateFontString(nill, "OVERLAY")
+  SettingsWindow.title = SettingsWindow:CreateFontString(nil, "OVERLAY")
   SettingsWindow.title:SetFontObject("GameFontHighlight")
   SettingsWindow.title:SetPoint("LEFT", HLBSettingsFrameTitleBG, "LEFT", 5, -2)
   SettingsWindow.title:SetText("Settings")
@@ -84,9 +150,11 @@ local function CreateSettingsWindow(core)
 
   -- Add Spell Button
   SettingsWindow.addSpellButton = CreateFrame("Button", nil, SettingsWindow, "GameMenuButtonTemplate")
-  SettingsWindow.addSpellButton:SetPoint("CENTER", SettingsWindow, "TOP", 0, -50)
+  SettingsWindow.addSpellButton:SetPoint("LEFT", SettingsWindow, "TOPLEFT", 80, -65)
   SettingsWindow.addSpellButton:SetSize(140, 40)
   SettingsWindow.addSpellButton:SetText("Add Spell")
+  SettingsWindow.addSpellButton:RegisterForClicks("AnyUp")
+  SettingsWindow.addSpellButton:SetScript("OnClick", onAddSpell)
 
   -- Kind of tab's buttons
   Settings_CreateTabs(SettingsWindow)
@@ -97,12 +165,17 @@ end
 
 local function showSettingsWindow()
   if SettingsWindow then SettingsWindow:Show() else CreateSettingsWindow():Show() end
+
+  Core.CoreFrame:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
 end
 
 local function Settings_Methods(core)
   
   -- Opening (creating or showing) Settings Window
   core.showSettingsWindow = showSettingsWindow
+
+  -- On Player Spell Successfull
+  core.Settings_OnSpellSuccess = Settings_OnSpellSuccess
   
 
 end

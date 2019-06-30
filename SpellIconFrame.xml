@@ -1,0 +1,31 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/"
+ xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+ xsi:schemaLocation="http://www.blizzard.com/wow/ui/ ..\FrameXML\UI.xsd">
+  <Script file="Settings.lua"></Script>
+  <Script file="HealLikeBoss.lua"></Script>
+  <Frame name="OleksMainSpellFrame" parent="UIParent" hidden="true">
+    <Size x="70" y="70"/>
+    <Anchors>
+      <Anchor point="CENTER"/>
+    </Anchors>
+    <Layers>
+      <Layer level="BACKGROUND">
+        <Texture parentKey="BG">
+          <Anchors>
+            <Anchor point="TOPLEFT" x="1" y="-1"/>
+            <Anchor point="BOTTOMRIGHT" x="-1" y="1"/>
+          </Anchors>
+          <Color r="1" g="1" b="1"/>
+        </Texture>
+      </Layer>
+    </Layers>
+    
+    <Scripts>
+      <OnLoad>
+        Settings_Init(Core_getCore())
+        Core_RegisterMainEventHandlers(self)
+    </OnLoad>
+    </Scripts>
+  </Frame>
+
+</Ui>

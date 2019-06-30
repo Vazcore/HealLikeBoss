@@ -1,0 +1,8 @@
+## Interface: 80200
+## Title: Heal like a Boss
+## Author: Oleksii Habrusiev
+## SavedVariablesPerCharacter: UserData
+
+Settings.lua
+HealLikeBoss.lua
+SpellIconFrame.xml

@@ -319,6 +319,11 @@ function Core_Update_Cooldowns( spellId, ... )
   local currentTime = GetTime()
   local spellModel = Core.Settings_GetSpellById(spellId)
 
+  if (spellModel == nil) then
+    local start, duration = GetSpellCooldown(spellId)
+    spellModel = {cd = duration}
+  end
+
   UserData.cdSpells[spellId] = currentTime + spellModel.cd
 end
 
@@ -334,13 +339,12 @@ end
 
 function handlers.COMBAT_LOG_EVENT_UNFILTERED( self, event, ... )
 
-  local timestamp, subevent, hideCaster, srcGUID, srcName, srcFlags, dstGUID, dstName, dstFlags = CombatLogGetCurrentEventInfo();
+  local timestamp, subevent, hideCaster, srcGUID, srcName, srcFlags, dstGUID, dstName, dstFlags = CombatLogGetCurrentEventInfo()
   local spellId = select(12, CombatLogGetCurrentEventInfo())
 
   if (srcGUID == mmyGuid and subevent == "SPELL_CAST_SUCCESS") then
     local spellName, _, spellIcon = GetSpellInfo(spellId)
     Core_Update_Cooldowns(spellId)
-
     if Core.Settings_OnSpellSuccess then
       Core.Settings_OnSpellSuccess(spellId, spellName, spellIcon)
     end

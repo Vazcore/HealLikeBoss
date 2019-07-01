@@ -193,6 +193,7 @@ local function onAddSpell(self, ...)
 end
 
 local function Settings_OnSpellSuccess( spellId, spellName, spellIcon )
+  print(spellName)
   SettingsWindow.spellListFrames.spell1.spellIconFrame.texture:SetTexture(spellIcon)
   lastSpell = {spellId, spellName, spellIcon}
 end

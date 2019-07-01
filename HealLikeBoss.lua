@@ -21,6 +21,10 @@ Core.situations.criticalDamage = {
   title = "Critical Damage"
 }
 
+Core.UserDataCheck = function( ... )
+  -- could be deleted
+end
+
 function Core_getCore()
   return Core
 end
@@ -58,11 +62,13 @@ local function initData()
   UserData = {
     spells = {}
   }
+  Core.UserDataCheck()
 end
 
 local function proccessData()
   print("Data is loaded")
   print(UserData)
+  Core.UserDataCheck()
 end
 
 local function printAllArgs( ... )

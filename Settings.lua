@@ -80,6 +80,7 @@ function onDeleteSpell( self )
       rerenderSpellPositions()
     end
   end
+  Core.sortSpellsByPriority()
 end
 
 local function createSpellRow( parentFrame, spellModel, index )
@@ -101,7 +102,7 @@ local function createSpellRow( parentFrame, spellModel, index )
   spell.name = CreateFrame("Frame", nil, spell)
   spell.name:SetSize(100, 50)
   spell.name:SetPoint("LEFT", spell.icon, "TOPLEFT", 0, 0)
-  spell.name.text = createText(spell.name, "LEFT", "TOPLEFT", 50, -25, spellModel.spName)
+  spell.name.text = Core.createText(spell.name, "LEFT", "TOPLEFT", 50, -25, spellModel.spName)
 
   -- Priority
 
@@ -185,6 +186,7 @@ local function onAddSpell(self, ...)
     activeTab.spells[spellId] = spellModel.cd
     activeTab.spellCount = spellCount
     addSpellToWindow(spellModel)
+    Core.sortSpellsByPriority()
   else
     showError("Such spell is already added")
   end
@@ -195,15 +197,7 @@ local function Settings_OnSpellSuccess( spellId, spellName, spellIcon )
   lastSpell = {spellId, spellName, spellIcon}
 end
 
-function createText( ... )
-  local parent, pos1, pos2, ox, oy, text = ...
 
-  local t = parent:CreateFontString(nil, "OVERLAY")
-  t:SetFontObject("GameFontHighlight")
-  t:SetPoint(pos1, parent, pos2, ox, oy)
-  t:SetText(text)
-  return t
-end
 
 local function initTabContent( tabButton )
   local tab = tabButton.content
@@ -218,8 +212,8 @@ local function initTabContent( tabButton )
   end
   tab.init = true
 
-  tab.title = createText(tab, "LEFT", "TOPLEFT", 240, 0, (tabButton.info.title .. " Tab"))
-  tab.desc = createText(tab, "LEFT", "TOPLEFT", 240, -10, "|c0000FF00Cast spell in order to add it")
+  tab.title = Core.createText(tab, "LEFT", "TOPLEFT", 240, 0, (tabButton.info.title .. " Tab"))
+  tab.desc = Core.createText(tab, "LEFT", "TOPLEFT", 240, -10, "|c0000FF00Cast spell in order to add it")
 
 end
 
@@ -252,16 +246,6 @@ local function  Settings_CreateTabContent(parent)
   tabContent:SetPoint("LEFT", SettingsWindow, "TOPLEFT", 0, -210)
   tabContent:SetSize(600, 300)
   return tabContent
-end
-
-function createBackDrop( frame )
-  frame:SetBackdrop({
-    bgFile = "Interface/Tooltips/UI-Tooltip-Background", 
-    edgeFile = "Interface/Tooltips/UI-Tooltip-Border", 
-    tile = true, tileSize = 16, edgeSize = 16, 
-    insets = { left = 4, right = 4, top = 4, bottom = 4 }
-  });
-  frame:SetBackdropColor(0,0,0,1);
 end
 
 local function  Settings_CreateTabs(parent)
@@ -321,7 +305,7 @@ local function CreateSettingsWindow(core)
   SetPortraitTexture(SettingsWindow.spellListFrames.spell1.spellIconFrame.texture, "player")
 
   --Error
-  SettingsWindow.spellListFrames.spell1.error = createText(SettingsWindow.spellListFrames.spell1, "CENTER", "TOP", 0, 0, "")
+  SettingsWindow.spellListFrames.spell1.error = Core.createText(SettingsWindow.spellListFrames.spell1, "CENTER", "TOP", 0, 0, "")
 
 
   -- Add Spell Button

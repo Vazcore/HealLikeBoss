@@ -69,6 +69,12 @@ Core.sortSpellsByPriority = function()
       return a.priority < b.priority
     end)
   end
+
+  for k,v in pairs(UserData.bundles) do
+    table.sort(UserData.bundles[k], function( a, b )
+      return a.priority < b.priority
+    end)
+  end
 end
 
 Core.Settings_GetSpellById = function(spId)
@@ -82,6 +88,30 @@ Core.Settings_GetSpellById = function(spId)
     end
   end
   return spell
+end
+
+Core.createButton = function( ... )
+  local parent, pos1, pos2, ox, oy, w, h, text, onClick = ...
+  local button = CreateFrame("Button", nil, parent, "GameMenuButtonTemplate")
+  button:SetPoint(pos1, parent, pos2, ox, oy)
+  button:SetSize(w, h)
+  button:SetText(text)
+
+  if onClick then
+    button:RegisterForClicks("AnyUp")
+    button:SetScript("OnClick", onClick)
+  end
+  
+  return button
+end
+
+Core.createFrame = function ( ... )
+  local parent, name, template, pos1, pos2, ox, oy, w, h  = ...
+  local frame = CreateFrame("Frame", name, parent, template)
+  frame:SetSize(w, h)
+  frame:SetPoint(pos1, parent, pos2, ox, oy)
+
+  return frame
 end
 
 function Core_getCore()
@@ -282,7 +312,8 @@ end
 local function initData()
   UserData = {
     spells = {},
-    cdSpells={}
+    cdSpells={},
+    bundles={}
   }
   Core.UserDataCheck()
 end

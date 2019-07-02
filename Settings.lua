@@ -3,14 +3,15 @@ local SettingsWindow = nil
 local activeTab = nil
 local lastSpell = nil
 
-local function createSpellModel( spId, spName, spIcon, cd, priority, group )
+local function createSpellModel( spId, spName, spIcon, cd, priority, group, bundle )
   local model = {
     spId = spId,
     spName = spName,
     spIcon=spIcon,
     cd=cd,
     priority = priority or 0,
-    group=group
+    group=group,
+    bundle=bundle or nil
   }
   return model
 end
@@ -44,6 +45,15 @@ function rerenderSpellPositions()
       v:SetPoint("LEFT", activeTab.content, "TOPLEFT", 30, spell.priority * -50)
     end
   end
+
+  activeTab.bundles = activeTab.bundles or {}
+  for k,v in pairs(activeTab.bundles) do
+    local bundle = v.model
+    if bundle then
+      v:ClearAllPoints()
+      v:SetPoint("LEFT", activeTab.content, "TOPLEFT", 30, bundle.priority * -50)
+    end
+  end
 end
 
 local function onPriorityDown( self )
@@ -65,22 +75,55 @@ function FixPriorityAfterDeletion( priority )
       v.priority = v.priority - 1
     end
   end
+
+  for i,val in pairs(UserData.bundles[activeTab.info.title]) do
+    if val.priority > priority then
+      val.priority = val.priority - 1
+    end
+  end
 end
 
 local function onPriorityUp( self )
   -- body
 end
 
+function deleteSpellFromBucketList( self )
+  for k,v in pairs(SettingsWindow.bundleWindow.spells) do
+    -- TODO
+    print(self.spId)
+  end
+end
+
 function onDeleteSpell( self )
-  for k,v in pairs(UserData.spells[activeTab.info.title]) do
-    if v.spId == self.spId then
-      table.remove(UserData.spells[activeTab.info.title], k)
-      activeTab.spellList["spell_" .. v.spId]:Hide()
-      FixPriorityAfterDeletion(k)
+  if activeTab.mode == "spells" then
+    for k,v in pairs(UserData.spells[activeTab.info.title]) do
+      if v.spId == self.spId then
+        table.remove(UserData.spells[activeTab.info.title], k)
+        activeTab.spellList["spell_" .. v.spId]:Hide()
+        FixPriorityAfterDeletion(k)
+        rerenderSpellPositions()
+      end
+    end
+    Core.sortSpellsByPriority()
+  else
+    deleteSpellFromBucketList(self)
+  end
+end
+
+function onDeleteBundle( self )
+  for k,v in pairs(UserData.bundles[activeTab.info.title]) do
+    if v.id == self.id then
+      table.remove(UserData.bundles[activeTab.info.title], k)
+      activeTab.bundles[v.id]:Hide()
+      FixPriorityAfterDeletion(v.priority)
       rerenderSpellPositions()
     end
   end
   Core.sortSpellsByPriority()
+end
+
+function onEditBundle(self)
+  initBundleWindow(self.model)
 end
 
 local function createSpellRow( parentFrame, spellModel, index )
@@ -125,6 +168,51 @@ local function createSpellRow( parentFrame, spellModel, index )
   return spell
 end
 
+local function createBundleRow( parentFrame, bundleModel )
+   -- Create Bundke frame
+  local spell = CreateFrame("Frame", nil, parentFrame)
+  spell:SetSize(400, 50)
+  spell:SetPoint("LEFT", parentFrame, "TOPLEFT", 30, bundleModel.priority * -50)
+
+  -- bundle icon
+  spell.icon = CreateFrame("Frame", nil, spell)
+  spell.icon:SetSize(40,40)
+  spell.icon:SetPoint("LEFT", spell, "BOTTOMLEFT", 0,0)
+  spell.icon.texture = spell.icon:CreateTexture(nil, "BACKGROUND")
+  spell.icon.texture:SetSize(40,40)
+  spell.icon.texture:SetPoint("LEFT", spell.icon, "TOPLEFT", 0, 0)
+  spell.icon.texture:SetTexture(bundleModel.icon)
+
+  -- bundle spName
+  spell.name = CreateFrame("Frame", nil, spell)
+  spell.name:SetSize(100, 50)
+  spell.name:SetPoint("LEFT", spell.icon, "TOPLEFT", 0, 0)
+  spell.name.text = Core.createText(spell.name, "LEFT", "TOPLEFT", 50, -25, bundleModel.name)
+
+  -- Priority
+
+  spell.priorityDown= createButton(
+    spell, "LEFT", spell.name.text, "TOPLEFT", 100, -20, 30, 20, "-", onPriorityDown
+  )
+  spell.priorityDown.id = bundleModel.id
+
+  spell.priorityUp= createButton(
+    spell, "LEFT", spell.name.text, "TOPLEFT", 100, 0, 30, 20, "+", onPriorityUp
+  )
+  spell.priorityUp.id = bundleModel.id
+
+  spell.delete = createButton(
+    spell, "LEFT", spell.priorityUp, "TOPRIGHT", 20, -20, 50, 30, "Delete", onDeleteBundle
+  )
+  spell.delete.id = bundleModel.id
+
+  spell.openBundle = createButton(
+    spell, "LEFT", spell.priorityUp, "TOPRIGHT", 80, -20, 40, 30, "Edit", onEditBundle
+  )
+  spell.openBundle.model = bundleModel
+  return spell
+end
+
 function Settings_UpdatePriority( spellId, priority )
   for i,v in pairs(UserData.spells[activeTab.info.title]) do
     if v.spId == spellId then
@@ -157,8 +245,33 @@ local function renderSpellList()
   activeTab.spellList = {}
   for i,v in pairs(UserData.spells[activeTab.info.title]) do
     activeTab.spells[v.spId] = v.cd
-    activeTab.spellList["spell_" .. v.spId] = createSpellRow(activeTab.content, v, i);
+    activeTab.spellList["spell_" .. v.spId] = createSpellRow(activeTab.content, v, v.priority);
     activeTab.spellCount = i
+  end
+end
+
+local function renderSpellsInBucketList(bundle)
+  SettingsWindow.bundleWindow.spells = {}
+
+  for i,v in pairs(bundle.spells) do
+    SettingsWindow.bundleWindow.spells[bundle.id] = createSpellRow(SettingsWindow.bundleWindow, v, v.priority)
+  end
+end
+
+local function renderBundleList(fromIndex)
+  local bundles = UserData.bundles[activeTab.info.title]
+  activeTab.bundles = {}
+  activeTab.bundlesCount = 0
+  
+  if bundles then
+    for k,v in pairs(UserData.bundles[activeTab.info.title]) do
+      activeTab.bundles[v.id] = {}
+      activeTab.bundles[v.id] = createBundleRow(activeTab.content, v, v.priority)
+      activeTab.bundles[v.id].model = v
+      activeTab.bundles[v.id].spellCount = table.getn(v.spells)
+      activeTab.bundlesCount = activeTab.bundlesCount + 1
+      activeTab.spellCount = activeTab.spellCount  + 1
+    end
   end
 end
 
@@ -170,16 +283,15 @@ local function addSpellToWindow( spellModel )
   activeTab.spellList["spell_"..spellModel.spId] = createSpellRow(activeTab.content, spellModel, activeTab.spellCount)
 end
 
-local function onAddSpell(self, ...)
+function addSpellToBundleWindow( spellModel, bundle )
+  bundle.spells[spellModel.spId] = createSpellRow(SettingsWindow.bucketWindow, spellModel, bundle.spellCount)
+end
+
+local function onAddIntoSpells()
   local spellId, spellName, spellIcon  = unpack(lastSpell)
   local start, duration = GetSpellCooldown(spellId)
   local spellCount = activeTab.spellCount + 1
   local spellModel = createSpellModel(spellId, spellName, spellIcon, duration, spellCount, activeTab.info.title)
-
-  if (UserData.spells[activeTab.info.title] == nil) then
-    UserData.spells[activeTab.info.title] = {}
-  end
-
   -- Adding data to User Data
   if spellId and activeTab.spells[spellId] == nil then
     table.insert(UserData.spells[activeTab.info.title], spellModel)
@@ -192,8 +304,38 @@ local function onAddSpell(self, ...)
   end
 end
 
+local function onAddIntoBundle()
+  local spellId, spellName, spellIcon  = unpack(lastSpell)
+  local start, duration = GetSpellCooldown(spellId)
+  local bundle = activeTab.bundles[activeTab.bundlesCount]
+  bundle.spellCount = bundle.spellCount + 1
+  local spellModel = createSpellModel(spellId, spellName, spellIcon, duration, bundle.spellCount, activeTab.info.title)
+
+  if spellId and bundle.spells[spellId] == nil then
+    table.insert(UserData.bundles[activeTab.info.title][activeTab.bundlesCount].spells, spellModel)
+    activeTab.spells[spellId] = spellModel.cd
+    addSpellToBundleWindow(spellModel, SettingsWindow.bundleWindow.spells)
+  else
+    showError("Such spell is already added to this Bundle")
+  end
+end
+
+local function onAddSpell(self, ...)
+
+  if (UserData.spells[activeTab.info.title] == nil) then
+    UserData.spells[activeTab.info.title] = {}
+  end
+
+  if activeTab.mode == "spells" then
+    onAddIntoSpells()
+  elseif activeTab.mode == "bundle" then
+    onAddIntoBundle()
+  end
+
+  
+end
+
 local function Settings_OnSpellSuccess( spellId, spellName, spellIcon )
-  print(spellName)
   SettingsWindow.spellListFrames.spell1.spellIconFrame.texture:SetTexture(spellIcon)
   lastSpell = {spellId, spellName, spellIcon}
 end
@@ -208,10 +350,15 @@ local function initTabContent( tabButton )
 
   if UserData.spells[tabButton.info.title] == nil then
     UserData.spells[tabButton.info.title] = {}
-  else
-    renderSpellList()
   end
+  if UserData.bundles[tabButton.info.title] == nil then
+    UserData.bundles[tabButton.info.title] = {}
+  end
+  renderSpellList()
+  renderBundleList()  
   tab.init = true
+
+  Settings_CreateBundles(activeTab)
 
   tab.title = Core.createText(tab, "LEFT", "TOPLEFT", 240, 0, (tabButton.info.title .. " Tab"))
   tab.desc = Core.createText(tab, "LEFT", "TOPLEFT", 240, -10, "|c0000FF00Cast spell in order to add it")
@@ -242,11 +389,29 @@ local function onTabButtonClick( instance, button, down )
   end
 end
 
+
 local function  Settings_CreateTabContent(parent)
   local tabContent = CreateFrame("Frame", nil, parent)
   tabContent:SetPoint("LEFT", SettingsWindow, "TOPLEFT", 0, -210)
   tabContent:SetSize(600, 300)
   return tabContent
+end
+
+function setBundleWindowText(index)
+  SettingsWindow.bundleWindow.title:SetText("|c0000FF00Cast spell in order to add it to Bundle #" .. index)
+end
+
+local function createBundleWindow(index)
+  local bundleWindow = Core.createFrame(SettingsWindow, nil, nil, "LEFT", "TOPLEFT", 7, -350, 593, 500)
+  bundleWindow.title = Core.createText(bundleWindow, "RIGHT", "TOPRIGHT", -135, 20, "|c0000FF00Cast spell in order to add it to Bundle #")
+  Core.createBackDrop(bundleWindow)
+  bundleWindow:Hide()
+
+  bundleWindow.close = Core.createButton(bundleWindow, "LEFT", "TOPRIGHT", -100, -30, 70, 40, "Close", closeBundleWindow)
+
+  bundleWindow.spells = Core.createFrame(bundleWindow, nil, nil, "LEFT", "TOPLEFT", 0, 0, 593, 500)
+
+  return bundleWindow
 end
 
 local function  Settings_CreateTabs(parent)
@@ -259,6 +424,7 @@ local function  Settings_CreateTabs(parent)
     parent["tab_button" .. n]:SetText(v.title)
     parent["tab_button" .. n].info = v
     parent["tab_button" .. n].content = Settings_CreateTabContent(parent["tab_button" .. n])
+    parent["tab_button" .. n].mode="spells"
 
 
     -- register click on
@@ -272,13 +438,65 @@ local function  Settings_CreateTabs(parent)
   setColorTextForButton(activeTab, {1, 0.5, 0.25, 1.0})
 end
 
+function Settings_CreateBundles( activeTab )
+  if activeTab.bundles == nil then
+    activeTab.bundles = {}
+    activeTab.bundlesCount = 0
+  end
+end
+
+function createBundleModel(index)
+  local spellName, _, spellIcon = GetSpellInfo(301758)
+  return {
+    id = index,
+    name = "Bundle #" .. index,
+    icon=spellIcon,
+    priority = activeTab.spellCount,
+    spells = {}
+  }
+end
+
+function initBundleWindow( bundle )
+  activeTab.content:Hide()
+  SettingsWindow.addBundleButton:Hide()
+  SettingsWindow.bundleWindow:Show()
+  setBundleWindowText(bundle.id)
+  activeTab.mode = "bundle"
+
+  if bundle then
+    renderSpellsInBucketList(bundle)
+  end
+end
+
+function closeBundleWindow( )
+  activeTab.content:Show()
+  SettingsWindow.addBundleButton:Show()
+  SettingsWindow.bundleWindow:Hide()
+  activeTab.mode = "spells"
+end
+
+local function onAddBundle()
+  activeTab.bundlesCount = activeTab.bundlesCount + 1
+  activeTab.spellCount = activeTab.spellCount + 1
+  activeTab.bundles[activeTab.bundlesCount] = {}
+  activeTab.bundles[activeTab.bundlesCount].model = createBundleModel(activeTab.bundlesCount)
+  activeTab.bundles[activeTab.bundlesCount].spellCount = 0
+  activeTab.bundles[activeTab.bundlesCount].spells = {}
+
+  initBundleWindow(activeTab.bundles[activeTab.bundlesCount].model)
+
+  if (UserData.bundles[activeTab.info.title] == nil) then
+    UserData.bundles[activeTab.info.title] = {}
+  end
+
+  if UserData.bundles[activeTab.info.title][activeTab.bundlesCount] == nil then
+    UserData.bundles[activeTab.info.title][activeTab.bundlesCount] = activeTab.bundles[activeTab.bundlesCount].model
+  end
+end
+
 
 local function CreateSettingsWindow(core)
-  SettingsWindow = CreateFrame("Frame", "HLBSettingsFrame", UIParent, "UIPanelDialogTemplate");
-  SettingsWindow:ClearAllPoints()
-  SettingsWindow:SetSize(600, 600)
-  SettingsWindow:SetPoint("CENTER", UIParent, "CENTER", 0, 50)
-  SettingsWindow:Hide()
+  SettingsWindow = Core.createFrame(UIParent, "HLBSettingsFrame", "UIPanelDialogTemplate", "CENTER", "CENTER", 0, 50, 600, 600)
 
   -- Title
   SettingsWindow.title = SettingsWindow:CreateFontString(nil, "OVERLAY")
@@ -294,9 +512,8 @@ local function CreateSettingsWindow(core)
   SettingsWindow.spellListFrames.spell1:SetPoint("LEFT", HLBSettingsFrameTitleBG, "LEFT", 20, -50)
 
   -- Spell Icon
-  SettingsWindow.spellListFrames.spell1.spellIconFrame = CreateFrame("Frame", nil, SettingsWindow.spellListFrames.spell1)
-  SettingsWindow.spellListFrames.spell1.spellIconFrame:SetSize(50, 50)
-  SettingsWindow.spellListFrames.spell1.spellIconFrame:SetPoint("LEFT", SettingsWindow.spellListFrames.spell1, "LEFT", 0, 0)
+  SettingsWindow.spellListFrames.spell1.spellIconFrame = Core.createFrame(SettingsWindow.spellListFrames.spell1, nil, nil, "LEFT", "LEFT", 0, 0, 50, 50)
+
 
   SettingsWindow.spellListFrames.spell1.spellIconFrame.texture =
     SettingsWindow.spellListFrames.spell1.spellIconFrame:CreateTexture(nil, "BACKGROUND")
@@ -310,15 +527,15 @@ local function CreateSettingsWindow(core)
 
 
   -- Add Spell Button
-  SettingsWindow.addSpellButton = CreateFrame("Button", nil, SettingsWindow, "GameMenuButtonTemplate")
-  SettingsWindow.addSpellButton:SetPoint("LEFT", SettingsWindow, "TOPLEFT", 80, -65)
-  SettingsWindow.addSpellButton:SetSize(140, 40)
-  SettingsWindow.addSpellButton:SetText("Add Spell")
-  SettingsWindow.addSpellButton:RegisterForClicks("AnyUp")
-  SettingsWindow.addSpellButton:SetScript("OnClick", onAddSpell)
+  SettingsWindow.addSpellButton = Core.createButton(SettingsWindow, "LEFT", "TOPLEFT", 80, -65, 140, 40, "Add Spell", onAddSpell)
+
+  -- Create Bundle
+  SettingsWindow.addBundleButton = Core.createButton(SettingsWindow, "LEFT", "TOPRIGHT", -120, -65, 100, 40, "Add Bundle", onAddBundle)
 
   -- Kind of tab's buttons
   Settings_CreateTabs(SettingsWindow)
+  Settings_CreateBundles(activeTab)
+  SettingsWindow.bundleWindow = createBundleWindow(activeTab.bundlesCount + 1)
 
   return SettingsWindow
 

@@ -77,6 +77,12 @@ Core.sortSpellsByPriority = function()
   end
 end
 
+Core.sortSpellsByPriorityInsideOfBundle = function(bundle)
+  table.sort(bundle.spells, function( a, b )
+    return a.priority < b.priority
+  end)
+end
+
 Core.Settings_GetSpellById = function(spId)
   local spell = nil
   for i,v in pairs(UserData.spells) do
@@ -88,6 +94,30 @@ Core.Settings_GetSpellById = function(spId)
     end
   end
   return spell
+end
+
+Core.findSpellsInBundle = function( spId, bundle )
+  for k,v in pairs(bundle.spells) do
+    if v.spId == spId then
+      return v
+    end
+  end
+end
+
+Core.findBundleById = function ( id, situation )
+  for k,v in pairs(UserData.bundles[situation]) do
+    if v.id == id then
+      return v
+    end
+  end
+end
+
+Core.findBundleByPriority = function ( priority, situation )
+  for k,v in pairs(UserData.bundles[situation]) do
+    if v.priority == priority then
+      return v
+    end
+  end
 end
 
 Core.createButton = function( ... )
@@ -113,6 +143,7 @@ Core.createFrame = function ( ... )
 
   return frame
 end
+
 
 function Core_getCore()
   return Core

@@ -7,6 +7,7 @@ local settingsFrame = nil
 
 -- Curret Action for Healer
 Core.action = nil
+Core.started = 0
 
 -- Core: Possible Healer Situations
 Core.situations = {}
@@ -232,12 +233,13 @@ function Core_GetCurrentAction( isRaid )
   return actionForHealer
 end
 
-function Core_SetClickBehaviour(spell, action)
-  if spell then
-    Core.tagetHealthBar:SetAttribute("type", "spell")
-    Core.tagetHealthBar:SetAttribute("unit", action.player.player.searchPrefix)
-    Core.tagetHealthBar:SetAttribute("spell", spell.spName)
-  end
+function Core_InitKeysMapping(self, playerData)
+  self:SetAttribute("type1", "spell")
+  self:SetAttribute("type2", "spell")
+  self:SetAttribute("unit", playerData.searchPrefix)
+  self:SetAttribute("spell1", "Regrowth")
+  self:SetAttribute("spell2", "Rejuvenation")
+  self:RegisterForClicks("AnyDown")
 end
 
 function Core_PickSpell( action )
@@ -252,12 +254,43 @@ function Core_UpdateSpellLogo( spell )
   Core.CoreFrame.BG:SetTexture(spell.spIcon)
 end
 
-function Core_UpdateTagetBar( action )
-  --print(action.player.player.name)
-  Core.tagetHealthBar.playerInfo:SetText(action.player.player.name)
+function displayBuffs(self, unitId)
+  local i = 1
+  local buff = UnitBuff(unitId, i)
+  while buff do
+    i = i + 1
+    buff = UnitBuff(unitId, i)
+    local name, rank, icon, count, debuffType, duration, expirationTime, unitCaster, isStealable, shouldConsolidate, spellId = UnitBuff(unitId, i)
+    local buffTexture = GetSpellTexture(shouldConsolidate)
+    --print(rank)
+    self.buff:SetTexture(136085)
+  end
+end
+
+function Core_UpdateTagetBars( self, action )
+  --print(action.player.player.name)  
   --Core.tagetHealthBar.health:ClearAllPoints();
-  local width = (Core.targetFrameConfig.hWidth/100) * action.player.healthPercent
-  Core.tagetHealthBar.health:SetWidth(width)
+  if ((#self.tagetHealthBars) ~= 0) then
+    local searchPrefix = Core_CheckIfIsRaid() and "raid" or "party"
+    for k,v in pairs(self.tagetHealthBars) do
+      local guid = UnitGUID(searchPrefix .. k)
+      if guid then
+        local playerData = Core_CreatePlayerData(guid, searchPrefix .. k)
+        local healthPercent = (playerData.health / playerData.max_health) * 100
+        local width = (Core.targetFrameConfig.hWidth/100) * healthPercent
+        v.playerInfo:SetText(playerData.name)
+        v.health:SetWidth(width)
+      end
+    end
+  else 
+    local playerData = Core_CreatePlayerData(mmyGuid, "player")
+    local healthPercent = (playerData.health / playerData.max_health) * 100
+    local width = (Core.targetFrameConfig.hWidth/100) * healthPercent
+    self.tagetHealthBars[0].playerInfo:SetText(playerData.name)
+    self.tagetHealthBars[0].health:SetWidth(width)
+    displayBuffs(self.tagetHealthBars[0], "player")
+  end
+  
 end
 
 function Core_OnUpdateBattle( self, elapsed )
@@ -265,44 +298,93 @@ function Core_OnUpdateBattle( self, elapsed )
   local currentActionData = Core_GetCurrentAction(isRaid)
 
   Core_ClearCooldowns()
-  Core_UpdateTagetBar(currentActionData)
+  Core_UpdateTagetBars(self, currentActionData)
+  
   local spell = Core_PickSpell(currentActionData)
   Core_UpdateSpellLogo(spell)
-  Core_SetClickBehaviour(spell, currentActionData)
 end
 
-function Core_CreateTargetHealthBar( self )
+function Core_CreateTargetHealthBar( self, playerData, columns, rows )
   
-  self.tagetHealthBar = CreateFrame("Button", "HealthBar", self, "SecureUnitButtonTemplate")
+  local tagetHealthBar = CreateFrame("Button", "HealthBar", self, "SecureActionButtonTemplate")
 
-  self.tagetHealthBar:SetSize(Core.targetFrameConfig.width, Core.targetFrameConfig.height)
-  self.tagetHealthBar:SetPoint("CENTER", self, "BOTTOMLEFT", 40, -40)
-  Core.createBackDrop(self.tagetHealthBar)
+  tagetHealthBar:SetSize(Core.targetFrameConfig.width, Core.targetFrameConfig.height)
+  tagetHealthBar:SetPoint("CENTER", UIParent, "CENTER",  columns * (Core.targetFrameConfig.hWidth + 10), Core.targetFrameConfig.height * rows)
+  Core.createBackDrop(tagetHealthBar)
 
-  self.tagetHealthBar.health = self.tagetHealthBar:CreateTexture(nil, "OVERLAY")
-  self.tagetHealthBar.health:SetSize(Core.targetFrameConfig.hWidth, Core.targetFrameConfig.hHeight)
-  self.tagetHealthBar.health:SetPoint("LEFT", self.tagetHealthBar, "TOPLEFT", 7, -25)
-  self.tagetHealthBar.health:SetColorTexture(unpack(Core.targetFrameConfig.color))
+  tagetHealthBar.health = tagetHealthBar:CreateTexture(nil, "ARTWORK")
+  tagetHealthBar.health:SetSize(Core.targetFrameConfig.hWidth, Core.targetFrameConfig.hHeight)
+  tagetHealthBar.health:SetPoint("LEFT", tagetHealthBar, "TOPLEFT", 7, -25)
+  tagetHealthBar.health:SetColorTexture(unpack(Core.targetFrameConfig.color))
 
-  self.tagetHealthBar.playerInfo = Core.createText(self.tagetHealthBar, "LEFT", "CENTER", -20, 0, "")
+  tagetHealthBar.playerInfo = Core.createText(tagetHealthBar, "LEFT", "CENTER", -20, 0, "")
+
+  tagetHealthBar.buff = tagetHealthBar:CreateTexture(nil, "OVERLAY")
+  tagetHealthBar.buff:SetSize(30,30)
+  tagetHealthBar.buff:SetPoint("TOP", tagetHealthBar, 10, -30)
+
  
-  RegisterUnitWatch(self.tagetHealthBar)
+  RegisterUnitWatch(tagetHealthBar)
 
-  Core.tagetHealthBar = self.tagetHealthBar
+  return tagetHealthBar
+end
 
+function Core_InitHealthBars(self)
+  local isRaid = Core_CheckIfIsRaid();
+  local searchPrefix = "party"
+  local playerData = "";
+  local players_count = 5
+  local players = {}
+  local count = 1
+  local rows = 1
+  local columns = 1
+  if isRaid then
+    searchPrefix = "raid"
+    players_count = 40
+  end
 
+  for i=1,players_count do
+    local guid = UnitGUID(searchPrefix .. i)
+    if guid then
+      playerData = Core_CreatePlayerData(guid, searchPrefix..i)
+      players[guid] = playerData
+      self.tagetHealthBars[count - 1] = Core_CreateTargetHealthBar(self, playerData, columns, rows)
+      Core_InitKeysMapping(self.tagetHealthBars[count - 1], playerData)
+      count = count + 1
+      columns = columns + 1
+      if count % 4 == 0 then
+        rows = rows + 1
+        columns = 1
+      end
+    end
+  end
+
+  -- Add host player
+  playerData = Core_CreatePlayerData(mmyGuid, "player")
+  players[mmyGuid] = playerData
+  self.tagetHealthBars[count - 1] = Core_CreateTargetHealthBar(self, playerData, count, rows)
+  Core_InitKeysMapping(self.tagetHealthBars[count - 1], playerData)
 end
 
 
 -----CONSOLE COMMANDS-------
+
+local function printArr(arr)
+  for k,v in pairs(arr) do
+    print(k, v)
+  end
+end
 
 
 local function openMainWidget( self )
   self:Show()
   self.BG:Show()
   self:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
-
-  Core_CreateTargetHealthBar(self)
+  Core.started = 1
+  
+  self.tagetHealthBars = {}
+  -- Core_CreateTargetHealthBar(self)
+  Core_InitHealthBars(self)
 
   local elapsedTime = 0
   self:SetScript("OnUpdate", function( self, elapsed )
@@ -314,8 +396,12 @@ local function openMainWidget( self )
   end)
 end
 
-local function stopService()
+local function stopService(self)
+  self:Hide()
+  self.BG:Hide()
+  Core.started = 0
   self:UnregisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
+  self:SetScript("OnUpdate", nil)
 end
 
 local function initConsoleCommands(self)
@@ -332,7 +418,7 @@ local function initConsoleCommands(self)
       print("Open settings")
       Core.showSettingsWindow()
     elseif command == "stop" then
-      stopService()
+      stopService(self)
     end
 
   end
@@ -417,6 +503,55 @@ function allHandlers(self, event, ...)
   return handlers[event](self, event, ...)
 end
 
+local function onClickOnAddonIcon(...)
+  print("Opem Main Widget")
+  openMainWidget(Core.CoreFrame)
+end
+
+local function ShowAddonIcon(self)
+  local ConfigWindow = Core.createFrame(UIParent, "HLBConfigFrame", "UIPanelDialogTemplate", "CENTER", "CENTER", 0, 50, 600, 600)
+  ConfigWindow:Hide()
+
+  -- Title
+  ConfigWindow.title = ConfigWindow:CreateFontString(nil, "OVERLAY")
+  ConfigWindow.title:SetFontObject("GameFontHighlight")
+  ConfigWindow.title:SetPoint("TOP", ConfigWindow, "TOP", 10, -10)
+  ConfigWindow.title:SetText("Menu")
+
+  ConfigWindow.StartButton = Core.createButton(ConfigWindow, "TOP","TOP", 10, -100, 300, 40, "Start", function ()
+    ConfigWindow:Hide()
+    if Core.started ~= 0 then
+      stopService(self)
+    else
+      openMainWidget(self)
+    end
+  end)
+
+  ConfigWindow.SettingsButton = Core.createButton(ConfigWindow, "TOP","TOP", 10, -150, 300, 40, "Settings", function ()
+    ConfigWindow:Hide()
+    Core.showSettingsWindow()
+  end)
+
+
+  local addonIconFrame = CreateFrame("Button", nil, UIParent)
+  addonIconFrame:SetPoint("TOPRIGHT", "UIParent", -140, 0)
+  addonIconFrame:SetSize(50, 50)
+  addonIconFrame.icon = addonIconFrame:CreateTexture(nil, "BACKGROUND")
+  addonIconFrame.icon:SetSize(50, 50)
+  addonIconFrame.icon:SetPoint("TOPRIGHT", addonIconFrame)
+  addonIconFrame.icon:SetTexture(614747)
+  addonIconFrame:Show()
+  addonIconFrame.icon:Show()
+  addonIconFrame:SetScript("OnClick", function ()
+    if Core.started ~= 0 then
+      ConfigWindow.StartButton:SetText("Stop")
+    else
+      ConfigWindow.StartButton:SetText("Start")
+    end
+    ConfigWindow:Show()
+  end)
+end
+
 function Core_RegisterMainEventHandlers(self)
   Core.CoreFrame = self
   
@@ -426,6 +561,8 @@ function Core_RegisterMainEventHandlers(self)
   self:SetScript("OnEvent", allHandlers)
   
   self:SetPoint("TOP", UIParent, "TOP")
+
+  ShowAddonIcon(self)
 
 end
 

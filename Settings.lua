@@ -649,10 +649,9 @@ local function Settings_Methods(core)
   core.showSettingsWindow = showSettingsWindow
 
   -- On Player Spell Successfull
-  core.Settings_OnSpellSuccess = Settings_OnSpellSuccess
-  
-
+  core.Settings_OnSpellSuccess = Settings_OnSpellSuccess  
 end
+
 
 function Settings_Init( core )
   Core = core

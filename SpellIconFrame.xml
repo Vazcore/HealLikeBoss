@@ -3,7 +3,7 @@
  xsi:schemaLocation="http://www.blizzard.com/wow/ui/ ..\FrameXML\UI.xsd">
   <Script file="Settings.lua"></Script>
   <Script file="HealLikeBoss.lua"></Script>
-  <Frame name="OleksMainSpellFrame" parent="UIParent" hidden="true">
+  <Frame name="OleksMainSpellFrame" parent="UIParent" hidden="true" movable="true">
     <Size x="70" y="70"/>
     <Anchors>
       <Anchor point="CENTER"/>
@@ -24,6 +24,9 @@
       <OnLoad>
         Settings_Init(Core_getCore())
         Core_RegisterMainEventHandlers(self)
+        Menu_Init(Core_getCore())
+        UILib_Init(Core_getCore())
+        KeyMapping_init(Core_getCore())
     </OnLoad>
     </Scripts>
   </Frame>

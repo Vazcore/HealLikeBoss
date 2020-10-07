@@ -8,6 +8,7 @@ local settingsFrame = nil
 -- Curret Action for Healer
 Core.action = nil
 Core.started = 0
+Core.handlers = handlers
 
 -- Core: Possible Healer Situations
 Core.situations = {}
@@ -42,26 +43,6 @@ Core.UserDataCheck = function( ... )
   if UserData.cdSpells == nil then
     UserData.cdSpells = {}
   end
-end
-
-Core.createBackDrop = function ( frame )
-  frame:SetBackdrop({
-    bgFile = "Interface/Tooltips/UI-Tooltip-Background", 
-    edgeFile = "Interface/Tooltips/UI-Tooltip-Border", 
-    tile = true, tileSize = 16, edgeSize = 16, 
-    insets = { left = 4, right = 4, top = 4, bottom = 4 }
-  });
-  frame:SetBackdropColor(0,0,0,1);
-end
-
-Core.createText = function( ... )
-  local parent, pos1, pos2, ox, oy, text = ...
-
-  local t = parent:CreateFontString(nil, "OVERLAY")
-  t:SetFontObject("GameFontHighlight")
-  t:SetPoint(pos1, parent, pos2, ox, oy)
-  t:SetText(text)
-  return t
 end
 
 Core.sortSpellsByPriority = function()
@@ -120,31 +101,6 @@ Core.findBundleByPriority = function ( priority, situation )
     end
   end
 end
-
-Core.createButton = function( ... )
-  local parent, pos1, pos2, ox, oy, w, h, text, onClick = ...
-  local button = CreateFrame("Button", nil, parent, "GameMenuButtonTemplate")
-  button:SetPoint(pos1, parent, pos2, ox, oy)
-  button:SetSize(w, h)
-  button:SetText(text)
-
-  if onClick then
-    button:RegisterForClicks("AnyUp")
-    button:SetScript("OnClick", onClick)
-  end
-  
-  return button
-end
-
-Core.createFrame = function ( ... )
-  local parent, name, template, pos1, pos2, ox, oy, w, h  = ...
-  local frame = CreateFrame("Frame", name, parent, template)
-  frame:SetSize(w, h)
-  frame:SetPoint(pos1, parent, pos2, ox, oy)
-
-  return frame
-end
-
 
 function Core_getCore()
   return Core
@@ -305,24 +261,22 @@ function Core_OnUpdateBattle( self, elapsed )
 end
 
 function Core_CreateTargetHealthBar( self, playerData, columns, rows )
-  
   local tagetHealthBar = CreateFrame("Button", "HealthBar", self, "SecureActionButtonTemplate")
 
   tagetHealthBar:SetSize(Core.targetFrameConfig.width, Core.targetFrameConfig.height)
   tagetHealthBar:SetPoint("CENTER", UIParent, "CENTER",  columns * (Core.targetFrameConfig.hWidth + 10), Core.targetFrameConfig.height * rows)
-  Core.createBackDrop(tagetHealthBar)
+  UILib.createBackDrop(tagetHealthBar)
 
   tagetHealthBar.health = tagetHealthBar:CreateTexture(nil, "ARTWORK")
   tagetHealthBar.health:SetSize(Core.targetFrameConfig.hWidth, Core.targetFrameConfig.hHeight)
   tagetHealthBar.health:SetPoint("LEFT", tagetHealthBar, "TOPLEFT", 7, -25)
   tagetHealthBar.health:SetColorTexture(unpack(Core.targetFrameConfig.color))
-
-  tagetHealthBar.playerInfo = Core.createText(tagetHealthBar, "LEFT", "CENTER", -20, 0, "")
-
+  
+  tagetHealthBar.playerInfo = UILib.createText(tagetHealthBar, "LEFT", "CENTER", -20, 0, "")
+  
   tagetHealthBar.buff = tagetHealthBar:CreateTexture(nil, "OVERLAY")
   tagetHealthBar.buff:SetSize(30,30)
   tagetHealthBar.buff:SetPoint("TOP", tagetHealthBar, 10, -30)
-
  
   RegisterUnitWatch(tagetHealthBar)
 
@@ -369,21 +323,13 @@ end
 
 -----CONSOLE COMMANDS-------
 
-local function printArr(arr)
-  for k,v in pairs(arr) do
-    print(k, v)
-  end
-end
-
-
-local function openMainWidget( self )
+function openMainWidget( self )
   self:Show()
   self.BG:Show()
   self:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
   Core.started = 1
   
   self.tagetHealthBars = {}
-  -- Core_CreateTargetHealthBar(self)
   Core_InitHealthBars(self)
 
   local elapsedTime = 0
@@ -396,7 +342,7 @@ local function openMainWidget( self )
   end)
 end
 
-local function stopService(self)
+function stopService(self)
   self:Hide()
   self.BG:Hide()
   Core.started = 0
@@ -503,54 +449,6 @@ function allHandlers(self, event, ...)
   return handlers[event](self, event, ...)
 end
 
-local function onClickOnAddonIcon(...)
-  print("Opem Main Widget")
-  openMainWidget(Core.CoreFrame)
-end
-
-local function ShowAddonIcon(self)
-  local ConfigWindow = Core.createFrame(UIParent, "HLBConfigFrame", "UIPanelDialogTemplate", "CENTER", "CENTER", 0, 50, 600, 600)
-  ConfigWindow:Hide()
-
-  -- Title
-  ConfigWindow.title = ConfigWindow:CreateFontString(nil, "OVERLAY")
-  ConfigWindow.title:SetFontObject("GameFontHighlight")
-  ConfigWindow.title:SetPoint("TOP", ConfigWindow, "TOP", 10, -10)
-  ConfigWindow.title:SetText("Menu")
-
-  ConfigWindow.StartButton = Core.createButton(ConfigWindow, "TOP","TOP", 10, -100, 300, 40, "Start", function ()
-    ConfigWindow:Hide()
-    if Core.started ~= 0 then
-      stopService(self)
-    else
-      openMainWidget(self)
-    end
-  end)
-
-  ConfigWindow.SettingsButton = Core.createButton(ConfigWindow, "TOP","TOP", 10, -150, 300, 40, "Settings", function ()
-    ConfigWindow:Hide()
-    Core.showSettingsWindow()
-  end)
-
-
-  local addonIconFrame = CreateFrame("Button", nil, UIParent)
-  addonIconFrame:SetPoint("TOPRIGHT", "UIParent", -140, 0)
-  addonIconFrame:SetSize(50, 50)
-  addonIconFrame.icon = addonIconFrame:CreateTexture(nil, "BACKGROUND")
-  addonIconFrame.icon:SetSize(50, 50)
-  addonIconFrame.icon:SetPoint("TOPRIGHT", addonIconFrame)
-  addonIconFrame.icon:SetTexture(614747)
-  addonIconFrame:Show()
-  addonIconFrame.icon:Show()
-  addonIconFrame:SetScript("OnClick", function ()
-    if Core.started ~= 0 then
-      ConfigWindow.StartButton:SetText("Stop")
-    else
-      ConfigWindow.StartButton:SetText("Start")
-    end
-    ConfigWindow:Show()
-  end)
-end
 
 function Core_RegisterMainEventHandlers(self)
   Core.CoreFrame = self
@@ -562,7 +460,6 @@ function Core_RegisterMainEventHandlers(self)
   
   self:SetPoint("TOP", UIParent, "TOP")
 
-  ShowAddonIcon(self)
 
 end
 

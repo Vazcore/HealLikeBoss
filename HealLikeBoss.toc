@@ -3,6 +3,9 @@
 ## Author: Oleksii Habrusiev
 ## SavedVariablesPerCharacter: UserData
 
+UILib.lua
 Settings.lua
 HealLikeBoss.lua
+KeyMapping.lua
+Menu.lua
 SpellIconFrame.xml

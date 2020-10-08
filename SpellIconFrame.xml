@@ -27,6 +27,7 @@
         Menu_Init(Core_getCore())
         UILib_Init(Core_getCore())
         KeyMapping_init(Core_getCore())
+        DisplayPanel_init(Core_getCore())
     </OnLoad>
     </Scripts>
   </Frame>

@@ -9,6 +9,7 @@ local function onEventsHanlder(self, event, ...)
     local spellName, _, spellIcon = GetSpellInfo(spellId)
     HLBKeyMappingFrame.icon:SetTexture(spellIcon)
     HLBKeyMappingFrame.addRowBtn:Enable()
+    HLBKeyMappingFrame.addRowBtn:SetText("Hover and map key")
   end
 end
 
@@ -33,7 +34,22 @@ local function RenderKeyMappingWindow()
   KeyMappingWindow:SetScript("OnEvent", onEventsHanlder)
 
   -- Add Row Mapping Button
-  KeyMappingWindow.addRowBtn = UILib.createButton(KeyMappingWindow, "CENTER", "TOP", 0, -115, 200, 40, "Add Key Mapping", onAddRow)
+  KeyMappingWindow.addRowBtn = UILib.createButton(KeyMappingWindow, "CENTER", "TOP", 0, -115, 200, 40, "Cast Any Spell", onAddRow)
+  KeyMappingWindow.addRowBtn:EnableMouse()
+  KeyMappingWindow.addRowBtn:SetScript("OnEnter", function ()
+    KeyMappingWindow.addRowBtn:EnableKeyboard(true)
+    KeyMappingWindow.addRowBtn:SetText("Map any key")
+    KeyMappingWindow.addRowBtn:SetScript("OnKeyDown", function (event, key)
+      UILib.print(key)
+    end)
+    KeyMappingWindow.addRowBtn:SetScript("OnClick", function (event, key, down)
+      UILib.print(down)
+    end)
+  end)
+  KeyMappingWindow.addRowBtn:SetScript("OnLeave", function ()
+    KeyMappingWindow.addRowBtn:EnableKeyboard(false)
+    KeyMappingWindow.addRowBtn:SetText("Hover and map key")
+  end)
   KeyMappingWindow.addRowBtn:Disable()
 
   -- Add Container for Key Mappings

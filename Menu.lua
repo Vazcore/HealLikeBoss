@@ -26,6 +26,11 @@ local function ShowAddonIcon(self)
     HLBKeyMappingFrame:Show()
   end)
 
+  ConfigWindow.SettingsButton = UILib.createButton(ConfigWindow, "TOP","TOP", 10, -250, 300, 40, "Panel Display", function ()
+    ConfigWindow:Hide()
+    HLBDisplayPanelFrame:Show()
+  end)
+
   -- Icon Menu
   local addonIconFrame = UILib.createFrame(UIParent, nil, nil, "TOPRIGHT", "TOPRIGHT", -140, 0,50,50, "Button")
   addonIconFrame.icon = UILib.createTexture(addonIconFrame, "BACKGROUND", 50,50,"TOPRIGHT","TOPRIGHT",0,0,614747)

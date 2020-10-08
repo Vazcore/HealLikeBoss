@@ -1,5 +1,7 @@
 UILib = {}
 
+UILib.debug = true
+
 UILib.createBackDrop = function ( frame )
   frame:SetBackdrop({
     bgFile = "Interface/Tooltips/UI-Tooltip-Background", 
@@ -53,9 +55,68 @@ UILib.createTexture = function ( ... )
   return texture
 end
 
+UILib.createDropDown = function ( ... )
+  local parent, name, pos1, pos2, ox, oy, w, onClick, rows = ...
+  local dropdown = CreateFrame("Frame", name, parent, "UIDropDownMenuTemplate")
+  dropdown:SetPoint(pos1, parent, pos2, ox, oy)
+  UIDropDownMenu_SetWidth(dropdown, w)
+
+  UIDropDownMenu_Initialize(dropdown, function ()
+    local info = UIDropDownMenu_CreateInfo()
+    info.func = onClick
+    local max = 10
+    for k,v in pairs(rows) do
+      if k > max then
+        break
+      end
+      info.text, info.arg1 = v[1], v[2]
+      UIDropDownMenu_AddButton(info)
+    end
+  end)
+
+   return dropdown
+end
+
+UILib.hasValue = function(val, arr)
+  for k,v in pairs(arr) do
+    if v == val then
+      return true
+    end
+  end
+  return false
+end
+
+UILib.getAllPlayerSpells = function()
+  local spells = {}
+  local distinct = {}
+  local i = 1
+  local spellName, spellSubName = GetSpellBookItemName(i, BOOKTYPE_SPELL)
+  while spellName do
+    if spellName then
+      local icon = select(3, GetSpellInfo(spellName))
+      local spellId = select(7, GetSpellInfo(spellName))
+      if UILib.hasValue(spellId, distinct) == false then
+        local spell = {spellName, icon, spellId}
+        table.insert(spells, spell)
+        table.insert(distinct, spellId)
+      end
+    end
+    i = i + 1
+    spellName, spellSubName = GetSpellBookItemName(i, BOOKTYPE_SPELL)
+  end
+
+  return spells
+end
+
 UILib.printArr = function(arr)
   for k,v in pairs(arr) do
     print(k, v)
+  end
+end
+
+UILib.print = function(arg1, arg2)
+  if (UILib.debug) then
+    print(arg1, arg2)
   end
 end
 

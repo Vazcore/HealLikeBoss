@@ -7,5 +7,6 @@ UILib.lua
 Settings.lua
 HealLikeBoss.lua
 KeyMapping.lua
+Display.lua
 Menu.lua
 SpellIconFrame.xml

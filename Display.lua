@@ -1,7 +1,7 @@
 local Core = nil
 local activePosition = nil
 
-local function RenderSpellList()
+function RenderSpellList()
   local DisplayPanel = UILib.createFrame(UIParent, "HLBDisplayPanelSpellsFrame", "UIPanelDialogTemplate", "CENTER", "CENTER", 0, 50, 800, 700)
   DisplayPanel:Hide()
   Core.PlayerSpells = UILib.getAllPlayerSpells()
@@ -91,5 +91,4 @@ end
 function DisplayPanel_init(core)
   Core = core
   RenderPanel()
-  RenderSpellList()
 end

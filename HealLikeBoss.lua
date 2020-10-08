@@ -2,6 +2,7 @@ local Core = {}
 local mmyGuid = UnitGUID("player")
 local handlers = {}
 local addonName = "HealLikeBoss"
+local loaded = false
 
 local settingsFrame = nil
 
@@ -191,14 +192,12 @@ local function Core_GetCurrentAction( isRaid )
   return actionForHealer
 end
 
-local function Core_InitKeysMapping(self, playerData)
+local function Core_InitKeysMapping(self)
   self:SetAttribute("type1", "spell")
   self:SetAttribute("type2", "spell")
-  self:SetAttribute("unit", self.playerData.searchPrefix)
   self:SetAttribute("spell1", "Regrowth")
   self:SetAttribute("spell2", "Power Word: Shield")
   self:RegisterForClicks("AnyDown")
-  print("Created bar: ", UnitName(self.playerData.searchPrefix))
 end
 
 local function Core_PickSpell( action )
@@ -233,7 +232,6 @@ local function displayBuffs(self, unitId)
   hideAllBuffs(self.positions)
   while buff do
     local name, rank, icon, spellType, duration, unitCaster = UnitBuff(unitId, i)
-    --print(rank)
     displayBuffIfExist(self.positions, rank)
     i = i + 1
     buff = UnitBuff(unitId, i)
@@ -242,24 +240,35 @@ end
 
 local function renderAllBuffs(bars)
   for k,v in pairs(bars) do
-    if v then
+    if v ~= nil and v.playerData ~= nil then
       displayBuffs(v, v.playerData.searchPrefix)
     end
   end
 end
 
+local function updateBuffIcons(bars)
+  for i,bar in pairs(bars) do
+    for j,pos in pairs(bar.positions) do
+      pos.icon = Core.positions[j][6]
+    end
+  end
+end
+
 local function Core_UpdateTagetBars( self, action )
-  if ((#self.tagetHealthBars) > 1) then
+  local isInPartyOrRaid = UILib.isPlayerInPartyOrRaid("player")
+  if (isInPartyOrRaid) then
     local searchPrefix = Core_CheckIfIsRaid() and "raid" or "party"
     for k,v in pairs(self.tagetHealthBars) do
-      local guid = UnitGUID(v.playerData.searchPrefix)
+      local guid = UnitGUID(searchPrefix .. k)
       if guid then
-        local playerData = Core_CreatePlayerData(guid, v.playerData.searchPrefix)
+        local playerData = Core_CreatePlayerData(guid, searchPrefix .. k)
         local healthPercent = (playerData.health / playerData.max_health) * 100
         local width = (Core.targetFrameConfig.hWidth/100) * healthPercent
-        local isInRange = UnitInRange(v.playerData.searchPrefix)
+        local isInRange = UnitInRange(searchPrefix .. k)
         v.playerInfo:SetText(playerData.name .. ", " .. playerData.searchPrefix)
         v.health:SetWidth(width)
+        v.playerData = playerData
+        v.guid = guid
 
         if (isInRange == false) then
           v.health:SetColorTexture(unpack(Core.targetFrameConfig.outOfRangeColor))
@@ -267,7 +276,7 @@ local function Core_UpdateTagetBars( self, action )
           v.health:SetColorTexture(unpack(Core.targetFrameConfig.color))
         end
       else
-        print("Error missing: ", self.tagetHealthBars.playerData.name)
+        UILib.print("Error missing: ", self.tagetHealthBars.playerData.name)
       end
     end
   else 
@@ -276,10 +285,11 @@ local function Core_UpdateTagetBars( self, action )
     local width = (Core.targetFrameConfig.hWidth/100) * healthPercent
     self.tagetHealthBars[1].playerInfo:SetText(playerData.name)
     self.tagetHealthBars[1].health:SetWidth(width)
+    self.tagetHealthBars[1].playerData = playerData
+    self.tagetHealthBars[1].guid = mmyGuid
   end
 
   renderAllBuffs(self.tagetHealthBars)
-  
 end
 
 local function Core_OnUpdateBattle( self, elapsed )
@@ -293,7 +303,7 @@ local function Core_OnUpdateBattle( self, elapsed )
   Core_UpdateSpellLogo(spell)
 end
 
-local function Core_CreateTargetHealthBar( self, playerData, columns, rows, guid )
+local function Core_CreateTargetHealthBar( self, columns, rows )
   local tagetHealthBar = CreateFrame("Button", nil, self, "SecureActionButtonTemplate")
 
   tagetHealthBar:SetSize(Core.targetFrameConfig.width, Core.targetFrameConfig.height)
@@ -306,7 +316,6 @@ local function Core_CreateTargetHealthBar( self, playerData, columns, rows, guid
   tagetHealthBar.health:SetColorTexture(unpack(Core.targetFrameConfig.color))
   
   tagetHealthBar.playerInfo = UILib.createText(tagetHealthBar, "LEFT", "CENTER", -20, 0, "")
-  tagetHealthBar.guid = guid
 
   tagetHealthBar.positions = {}
   for k,v in pairs(Core.positions) do
@@ -315,11 +324,41 @@ local function Core_CreateTargetHealthBar( self, playerData, columns, rows, guid
     table.insert(tagetHealthBar.positions, position)
   end
 
-  tagetHealthBar.playerData = playerData
+  tagetHealthBar.playerData = nil
+  tagetHealthBar.guid = nil
  
   RegisterUnitWatch(tagetHealthBar)
 
   return tagetHealthBar
+end
+
+local function updateUnitForHealthBars(self, unitId)
+  self:SetAttribute("unit", unitId)
+end
+
+local function updateKeyMappingsForHealthBars(healthBars)
+  for k,bar in pairs(healthBars) do
+    Core_InitKeysMapping(bar)
+  end
+end
+
+local function renderAllHealthBars(self)
+  self.tagetHealthBars = {}
+  local rows = 1
+  local columns = 1
+  local players_count = 40
+  local bar = nil
+  for i=1, players_count do
+    bar = Core_CreateTargetHealthBar(self, columns, rows)
+    table.insert(self.tagetHealthBars, bar);
+    columns = columns + 1
+    if i % 4 == 0 then
+      rows = rows + 1
+      columns = 1
+    end
+  end
+
+  updateKeyMappingsForHealthBars(self.tagetHealthBars)
 end
 
 local function Core_InitHealthBars(self)
@@ -330,7 +369,7 @@ local function Core_InitHealthBars(self)
   local count = 1
   local rows = 1
   local columns = 1
-  local isInPartyOrRaid = (UnitInParty("player") ~= false) or (UnitInRaid("player") ~= nil)
+  local isInPartyOrRaid = UILib.isPlayerInPartyOrRaid("player")
   if isRaid then
     searchPrefix = "raid"
     players_count = 40
@@ -341,22 +380,17 @@ local function Core_InitHealthBars(self)
       local guid = UnitGUID(searchPrefix .. i)
       if guid then
         playerData = Core_CreatePlayerData(guid, searchPrefix..i)
-        self.tagetHealthBars[count] = Core_CreateTargetHealthBar(self, playerData, columns, rows, guid)
-        Core_InitKeysMapping(self.tagetHealthBars[count], playerData)
+        updateUnitForHealthBars(self.tagetHealthBars[count], playerData.searchPrefix)
         count = count + 1
-        columns = columns + 1
-        if count % 4 == 0 then
-          rows = rows + 1
-          columns = 1
-        end
       end
     end
   else
     -- Add host player
     playerData = Core_CreatePlayerData(mmyGuid, "player")
-    self.tagetHealthBars[count] = Core_CreateTargetHealthBar(self, playerData, count, rows, mmyGuid)
-    Core_InitKeysMapping(self.tagetHealthBars[count], playerData)
+    updateUnitForHealthBars(self.tagetHealthBars[count], "player")
   end
+
+  updateBuffIcons(self.tagetHealthBars)
 end
 
 
@@ -368,7 +402,6 @@ function openMainWidget( self )
   self:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
   Core.started = 1
   
-  self.tagetHealthBars = {}
   Core_InitHealthBars(self)
 
   local elapsedTime = 0
@@ -386,8 +419,6 @@ function openMainWidget( self )
       local isInCombat = InCombatLockdown()
       UILib.print("In Combat", isInCombat)
       if isInCombat == false then
-        UILib.print("Rerender frames")
-        self.tagetHealthBars = {}
         Core_InitHealthBars(self)
       end
     end
@@ -413,7 +444,7 @@ local function initConsoleCommands(self)
     if (command == "start") then
       openMainWidget(self)
     elseif command == "settings" then
-      print("Open settings")
+      UILib.print("Open settings")
       Core.showSettingsWindow()
     elseif command == "stop" then
       stopService(self)
@@ -434,7 +465,7 @@ local function initData()
 end
 
 local function proccessData()
-  print("Data is loaded")
+  UILib.print("Data is loaded")
   Core.UserDataCheck()
   
   -- sort by priority
@@ -444,7 +475,7 @@ end
 local function printAllArgs( ... )
   local params = {...}
   for k,v in pairs(params) do
-    print(v)
+    UILib.print(v)
   end
 end
 
@@ -457,6 +488,8 @@ function handlers.ADDON_LOADED( self, event, addon )
     end
 
     initConsoleCommands(self)
+    renderAllHealthBars(self)
+    RenderSpellList()
   end
 end
 
@@ -484,7 +517,7 @@ end
 
 function handlers.RAID_ROSTER_UPDATE(self, event, ...)
   -- local arg1 = ...
-  -- print(arg1)
+  -- UILib.print(arg1)
 end
 
 function handlers.COMBAT_LOG_EVENT_UNFILTERED( self, event, ... )
@@ -493,7 +526,7 @@ function handlers.COMBAT_LOG_EVENT_UNFILTERED( self, event, ... )
   local spellId = select(12, CombatLogGetCurrentEventInfo())
 
   if (mmyGuid == sourceGUID) then
-    --print(destName)
+    --UILib.print(destName)
   end
   
 

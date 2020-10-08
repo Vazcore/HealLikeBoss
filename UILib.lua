@@ -1,6 +1,6 @@
 UILib = {}
 
-UILib.debug = true
+UILib.debug = false
 
 UILib.createBackDrop = function ( frame )
   frame:SetBackdrop({
@@ -108,9 +108,13 @@ UILib.getAllPlayerSpells = function()
   return spells
 end
 
+UILib.isPlayerInPartyOrRaid = function(unitId)
+  return (UnitInParty(unitId) ~= false) or (UnitInRaid(unitId) ~= nil)
+end
+
 UILib.printArr = function(arr)
   for k,v in pairs(arr) do
-    print(k, v)
+    UILib.print(k, v)
   end
 end
 

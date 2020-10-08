@@ -471,7 +471,7 @@ end
 
 local function onTabButtonClick( instance, button, down )
   if (instance.info.title ~= activeTab.info.title) then
-    print("Clicked on tab: " .. instance.info.title)
+    UILib.print("Clicked on tab: " .. instance.info.title)
     setColorTextForButton(activeTab, false)
     activeTab = instance  
     setColorTextForButton(activeTab, true)

@@ -213,7 +213,7 @@ local function createSpellRow( parentFrame, spellModel, index )
   spell.name = CreateFrame("Frame", nil, spell)
   spell.name:SetSize(100, 50)
   spell.name:SetPoint("LEFT", spell.icon, "TOPLEFT", 0, 0)
-  spell.name.text = Core.createText(spell.name, "LEFT", "TOPLEFT", 50, -25, spellModel.spName)
+  spell.name.text = UILib.createText(spell.name, "LEFT", "TOPLEFT", 50, -25, spellModel.spName)
 
   -- Priority
 
@@ -262,7 +262,7 @@ local function createBundleRow( parentFrame, bundleModel )
   spell.name = CreateFrame("Frame", nil, spell)
   spell.name:SetSize(100, 50)
   spell.name:SetPoint("LEFT", spell.icon, "TOPLEFT", 0, 0)
-  spell.name.text = Core.createText(spell.name, "LEFT", "TOPLEFT", 50, -25, bundleModel.name)
+  spell.name.text = UILib.createText(spell.name, "LEFT", "TOPLEFT", 50, -25, bundleModel.name)
 
   -- Priority
 
@@ -451,8 +451,8 @@ local function initTabContent( tabButton )
 
   Settings_CreateBundles(activeTab)
 
-  tab.title = Core.createText(tab, "LEFT", "TOPLEFT", 240, 0, (tabButton.info.title .. " Tab"))
-  tab.desc = Core.createText(tab, "LEFT", "TOPLEFT", 240, -10, "|c0000FF00Cast spell in order to add it")
+  tab.title = UILib.createText(tab, "LEFT", "TOPLEFT", 240, 0, (tabButton.info.title .. " Tab"))
+  tab.desc = UILib.createText(tab, "LEFT", "TOPLEFT", 240, -10, "|c0000FF00Cast spell in order to add it")
 
 end
 
@@ -471,7 +471,7 @@ end
 
 local function onTabButtonClick( instance, button, down )
   if (instance.info.title ~= activeTab.info.title) then
-    print("Clicked on tab: " .. instance.info.title)
+    UILib.print("Clicked on tab: " .. instance.info.title)
     setColorTextForButton(activeTab, false)
     activeTab = instance  
     setColorTextForButton(activeTab, true)
@@ -493,14 +493,14 @@ function setBundleWindowText(index)
 end
 
 local function createBundleWindow()
-  local bundleWindow = Core.createFrame(SettingsWindow, nil, nil, "LEFT", "TOPLEFT", 7, -350, 593, 500)
-  bundleWindow.title = Core.createText(bundleWindow, "RIGHT", "TOPRIGHT", -135, 20, "|c0000FF00Cast spell in order to add it to Bundle #")
-  Core.createBackDrop(bundleWindow)
+  local bundleWindow = UILib.createFrame(SettingsWindow, nil, nil, "LEFT", "TOPLEFT", 7, -350, 593, 500)
+  bundleWindow.title = UILib.createText(bundleWindow, "RIGHT", "TOPRIGHT", -135, 20, "|c0000FF00Cast spell in order to add it to Bundle #")
+  UILib.createBackDrop(bundleWindow)
   bundleWindow:Hide()
 
-  bundleWindow.close = Core.createButton(bundleWindow, "LEFT", "TOPRIGHT", -100, -30, 70, 40, "Close", closeBundleWindow)
+  bundleWindow.close = UILib.createButton(bundleWindow, "LEFT", "TOPRIGHT", -100, -30, 70, 40, "Close", closeBundleWindow)
 
-  bundleWindow.spells = Core.createFrame(bundleWindow, nil, nil, "LEFT", "TOPLEFT", 0, 0, 593, 500)
+  bundleWindow.spells = UILib.createFrame(bundleWindow, nil, nil, "LEFT", "TOPLEFT", 0, 0, 593, 500)
   bundleWindow.spells.list = {}
 
   return bundleWindow
@@ -592,7 +592,7 @@ end
 
 
 local function CreateSettingsWindow(core)
-  SettingsWindow = Core.createFrame(UIParent, "HLBSettingsFrame", "UIPanelDialogTemplate", "CENTER", "CENTER", 0, 50, 600, 600)
+  SettingsWindow = UILib.createFrame(UIParent, "HLBSettingsFrame", "UIPanelDialogTemplate", "CENTER", "CENTER", 0, 50, 600, 600)
 
   -- Title
   SettingsWindow.title = SettingsWindow:CreateFontString(nil, "OVERLAY")
@@ -608,7 +608,7 @@ local function CreateSettingsWindow(core)
   SettingsWindow.spellListFrames.spell1:SetPoint("LEFT", HLBSettingsFrameTitleBG, "LEFT", 20, -50)
 
   -- Spell Icon
-  SettingsWindow.spellListFrames.spell1.spellIconFrame = Core.createFrame(SettingsWindow.spellListFrames.spell1, nil, nil, "LEFT", "LEFT", 0, 0, 50, 50)
+  SettingsWindow.spellListFrames.spell1.spellIconFrame = UILib.createFrame(SettingsWindow.spellListFrames.spell1, nil, nil, "LEFT", "LEFT", 0, 0, 50, 50)
 
 
   SettingsWindow.spellListFrames.spell1.spellIconFrame.texture =
@@ -619,14 +619,14 @@ local function CreateSettingsWindow(core)
   SetPortraitTexture(SettingsWindow.spellListFrames.spell1.spellIconFrame.texture, "player")
 
   --Error
-  SettingsWindow.spellListFrames.spell1.error = Core.createText(SettingsWindow.spellListFrames.spell1, "CENTER", "TOP", 0, 0, "")
+  SettingsWindow.spellListFrames.spell1.error = UILib.createText(SettingsWindow.spellListFrames.spell1, "CENTER", "TOP", 0, 0, "")
 
 
   -- Add Spell Button
-  SettingsWindow.addSpellButton = Core.createButton(SettingsWindow, "LEFT", "TOPLEFT", 80, -65, 140, 40, "Add Spell", onAddSpell)
+  SettingsWindow.addSpellButton = UILib.createButton(SettingsWindow, "LEFT", "TOPLEFT", 80, -65, 140, 40, "Add Spell", onAddSpell)
 
   -- Create Bundle
-  SettingsWindow.addBundleButton = Core.createButton(SettingsWindow, "LEFT", "TOPRIGHT", -120, -65, 100, 40, "Add Bundle", onAddBundle)
+  SettingsWindow.addBundleButton = UILib.createButton(SettingsWindow, "LEFT", "TOPRIGHT", -120, -65, 100, 40, "Add Bundle", onAddBundle)
 
   -- Kind of tab's buttons
   Settings_CreateTabs(SettingsWindow)
@@ -649,10 +649,9 @@ local function Settings_Methods(core)
   core.showSettingsWindow = showSettingsWindow
 
   -- On Player Spell Successfull
-  core.Settings_OnSpellSuccess = Settings_OnSpellSuccess
-  
-
+  core.Settings_OnSpellSuccess = Settings_OnSpellSuccess  
 end
+
 
 function Settings_Init( core )
   Core = core

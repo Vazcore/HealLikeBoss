@@ -1,8 +1,12 @@
-## Interface: 80200
+## Interface: 80300
 ## Title: Heal like a Boss
 ## Author: Oleksii Habrusiev
 ## SavedVariablesPerCharacter: UserData
 
+UILib.lua
 Settings.lua
 HealLikeBoss.lua
+KeyMapping.lua
+Display.lua
+Menu.lua
 SpellIconFrame.xml
